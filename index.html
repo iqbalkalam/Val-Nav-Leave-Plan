@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Val Nav — Leave Planner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>
+:root{
+  --bg:#0b1020; --panel:#ffffff; --ink:#0f172a; --muted:#667085; --line:#eef1f6;
+  --accent:#6366f1; --accent2:#8b5cf6; --soft:#f4f6fb;
+  --timeoff:#6366f1; --holiday:#06b6d4; --radius:16px;
+  --shadow:0 1px 2px rgba(16,24,40,.04),0 12px 32px -12px rgba(16,24,40,.18);
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:'Inter',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;
+  background:radial-gradient(1200px 600px at 100% -10%,rgba(139,92,246,.10),transparent),radial-gradient(1000px 520px at -10% 0,rgba(99,102,241,.10),transparent),linear-gradient(180deg,#f7f8fc,#eef1f8);color:var(--ink);min-height:100vh;}
+header{background:linear-gradient(120deg,#4f46e5,#7c3aed,#6366f1);color:#fff;padding:22px 24px;box-shadow:var(--shadow);position:sticky;top:0;z-index:20}
+header h1{margin:0;font-size:21px;font-weight:800;letter-spacing:-.2px;display:flex;align-items:center;gap:10px}
+.wrap{max-width:1180px;margin:0 auto;padding:20px}
+.tabs{display:inline-flex;gap:4px;flex-wrap:wrap;margin:18px 0;padding:5px;background:rgba(255,255,255,.72);backdrop-filter:blur(10px);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow)}
+.tab{padding:9px 16px;border:none;border-radius:10px;background:transparent;color:var(--muted);font-weight:600;font-size:14px;cursor:pointer;transition:.18s}
+.tab:hover{color:var(--ink);background:rgba(99,102,241,.08)}
+.tab.active{background:var(--accent);color:#fff;box-shadow:0 8px 18px -8px rgba(99,102,241,.75)}
+.toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
+select,input,button{font-family:inherit;font-size:14px}
+.ctl{padding:8px 12px;border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--ink)}
+.btn{padding:9px 16px;border:none;border-radius:10px;background:var(--accent);color:#fff;font-weight:600;cursor:pointer;box-shadow:0 8px 18px -10px rgba(99,102,241,.9);transition:transform .12s,filter .12s}
+.btn.ghost{background:#fff;color:var(--accent);border:1px solid var(--line);box-shadow:none}
+.btn.danger{background:#ef4444;box-shadow:0 8px 18px -10px rgba(239,68,68,.9)}
+.btn:hover{filter:brightness(1.05);transform:translateY(-1px)}
+.btn:active{transform:translateY(0)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px;margin-bottom:18px}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--muted);align-items:center}
+.dot{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:6px;vertical-align:middle}
+.calhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.calhead h2{margin:0;font-size:17px}
+.navbtn{border:1px solid var(--line);background:#fff;border-radius:8px;width:34px;height:34px;cursor:pointer;font-size:16px}
+.grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.gh{text-align:center;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;padding:4px 0}
+.cell{min-height:92px;border:1px solid var(--line);border-radius:10px;padding:6px;background:#fff;position:relative;cursor:pointer;transition:.12s}
+.cell:hover{border-color:var(--accent);box-shadow:0 0 0 2px rgba(79,70,229,.12)}
+.cell.empty{background:transparent;border:none;cursor:default}
+.cell.today{border-color:var(--accent);box-shadow:0 0 0 2px rgba(79,70,229,.25)}
+.cell .dn{font-size:12px;font-weight:700;color:var(--muted)}
+.cell.weekend{background:#f8fafc}
+.pill{display:block;font-size:11px;line-height:1.25;margin-top:3px;padding:2px 6px;border-radius:6px;color:#fff;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.more{font-size:10px;color:var(--muted);margin-top:2px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line)}
+th{font-size:12px;text-transform:uppercase;color:var(--muted);letter-spacing:.4px}
+tr:hover td{background:var(--soft)}
+.tag{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;color:#fff}
+.avatar{display:inline-flex;width:26px;height:26px;border-radius:50%;color:#fff;font-size:12px;font-weight:700;
+  align-items:center;justify-content:center;margin-right:6px;vertical-align:middle}
+.statgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px}
+.stat{background:linear-gradient(180deg,#fff,#f8fafc);border:1px solid var(--line);border-radius:12px;padding:14px}
+.stat .big{font-size:26px;font-weight:800}
+.stat .lbl{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.4px}
+.bar{height:10px;border-radius:6px;background:var(--soft);overflow:hidden;margin-top:6px}
+.bar > span{display:block;height:100%;background:var(--accent)}
+.minirow{display:flex;justify-content:space-between;font-size:13px;padding:4px 0;border-bottom:1px dashed var(--line)}
+.overlay{position:fixed;inset:0;background:rgba(15,23,42,.5);display:none;align-items:center;justify-content:center;padding:16px;z-index:50}
+.overlay.show{display:flex}
+.modal{background:#fff;border-radius:16px;padding:22px;width:100%;max-width:460px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.modal h3{margin:0 0 14px}
+.field{margin-bottom:12px}
+.field label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.3px}
+.field input,.field select{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:9px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.modal-actions{display:flex;justify-content:space-between;gap:8px;margin-top:18px}
+.daylist{max-height:60vh;overflow:auto}
+.dayitem{display:flex;justify-content:space-between;align-items:center;padding:8px;border:1px solid var(--line);border-radius:10px;margin-bottom:8px}
+.hint{font-size:12px;color:var(--muted);margin-top:6px}
+.empty-note{color:var(--muted);text-align:center;padding:24px}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:#0f172a;color:#fff;padding:11px 18px;border-radius:12px;font-size:14px;font-weight:600;box-shadow:0 16px 40px -12px rgba(0,0,0,.5);opacity:0;pointer-events:none;transition:.25s cubic-bezier(.2,.8,.2,1);z-index:100}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+@media(max-width:640px){.cell{min-height:66px}.pill{font-size:10px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap" style="padding-top:0;padding-bottom:0;display:flex;align-items:center;justify-content:space-between;gap:12px">
+    <h1>🗓️ Val Nav — Leave Planner</h1>
+    <span id="cloudStatus" style="font-size:12px;font-weight:600;padding:5px 11px;border-radius:20px;background:rgba(255,255,255,.18);white-space:nowrap"></span>
+  </div>
+</header>
+<div class="toast" id="toast"></div>
+<div class="wrap">
+  <div class="tabs">
+    <button class="tab active" data-tab="calendar">📅 Calendar</button>
+    <button class="tab" data-tab="people">👥 People</button>
+    <button class="tab" data-tab="stats">📊 Stats</button>
+  </div>
+
+  <div class="card">
+    <div class="toolbar">
+      <select id="personFilter" class="ctl"></select>
+      <select id="typeFilter" class="ctl">
+        <option value="">All types</option>
+        <option value="timeoff">Time Off</option>
+        <option value="indian">Indian Holiday</option>
+        <option value="malaysia">Malaysia Holiday</option>
+        <option value="colombian">Colombian Holiday</option>
+        <option value="canada">Canada Holiday</option>
+        <option value="custom">Custom</option>
+      </select>
+      <button class="btn" id="addBtn">+ Add leave</button>
+      <div style="flex:1"></div>
+      <button class="btn" id="saveBtn">💾 Save</button>
+      <button class="btn ghost" id="exportXlsx">⬇ Excel</button>
+      <button class="btn ghost" id="exportCsv">⬇ CSV</button>
+      <button class="btn ghost" id="importBtn">⬆ Import</button>
+      <input type="file" id="importFile" accept=".xlsx,.xls,.csv" style="display:none">
+      <button class="btn ghost" id="resetBtn" title="Restore original data">↺ Reset</button>
+    </div>
+    <div class="legend">
+      <span><span class="dot" style="background:#16a34a"></span>Time Off</span>
+      <span><span class="dot" style="background:#f97316"></span>Indian Holiday</span>
+      <span><span class="dot" style="background:#2563eb"></span>Malaysia Holiday</span>
+      <span><span class="dot" style="background:#eab308"></span>Colombian Holiday</span>
+      <span><span class="dot" style="background:#dc2626"></span>Canada Holiday</span>
+      <span><span class="dot" style="background:#64748b"></span>Custom</span>
+    </div>
+  </div>
+
+  <div id="view-calendar"></div>
+  <div id="view-people" style="display:none"></div>
+  <div id="view-stats" style="display:none"></div>
+</div>
+
+<div class="overlay" id="editOverlay">
+  <div class="modal">
+    <h3 id="modalTitle">Add leave</h3>
+    <div class="field">
+      <label>Person</label>
+      <select id="mPerson"></select>
+    </div>
+    <div class="row2">
+      <div class="field"><label>Start date</label><input type="date" id="mStart"></div>
+      <div class="field"><label>End date</label><input type="date" id="mEnd"></div>
+    </div>
+    <div class="field">
+      <label>Type</label>
+      <select id="mType">
+        <option value="timeoff">Time Off</option>
+        <option value="indian">Indian Holiday</option>
+        <option value="malaysia">Malaysia Holiday</option>
+        <option value="colombian">Colombian Holiday</option>
+        <option value="canada">Canada Holiday</option>
+        <option value="custom">Custom (enter your own)</option>
+      </select>
+    </div>
+    <div class="field" id="mNoteField" style="display:none"><label>Custom label</label><input type="text" id="mNote" placeholder="e.g. Working From Office, Attending Conference"></div>
+    <div class="hint">Add creates one entry per day in the range. Delete removes this person’s leave across the whole range.</div>
+    <div class="modal-actions">
+      <button class="btn danger" id="mDelete" style="visibility:hidden">Delete</button>
+      <div style="flex:1"></div>
+      <button class="btn ghost" id="mCancel">Cancel</button>
+      <button class="btn" id="mSave">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="dayOverlay">
+  <div class="modal">
+    <h3 id="dayTitle">Day</h3>
+    <div class="daylist" id="dayList"></div>
+    <div class="modal-actions">
+      <button class="btn ghost" id="dayClose">Close</button>
+      <button class="btn" id="dayAdd">+ Add on this day</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const RAW = [{"person":"Doris","year":2025,"month":1,"day":1,"raw":"Canada Holiday"},{"person":"Iqbal","year":2025,"month":1,"day":1,"raw":"Indian Holiday"},{"person":"Iqbal","year":2025,"month":1,"day":20,"raw":"X"},{"person":"Iqbal","year":2025,"month":1,"day":21,"raw":"X"},{"person":"Iqbal","year":2025,"month":1,"day":22,"raw":"X"},{"person":"Iqbal","year":2025,"month":1,"day":23,"raw":"X"},{"person":"Iqbal","year":2025,"month":1,"day":24,"raw":"X"},{"person":"Katherine","year":2025,"month":1,"day":1,"raw":"Canada Holiday"},{"person":"Maryam","year":2025,"month":1,"day":1,"raw":"Canada Holiday"},{"person":"Maryam","year":2025,"month":1,"day":2,"raw":"X"},{"person":"Maryam","year":2025,"month":1,"day":3,"raw":"X"},{"person":"Feeza","year":2025,"month":1,"day":1,"raw":"Malaysia Holiday"},{"person":"Feeza","year":2025,"month":1,"day":29,"raw":"Malaysia Holiday"},{"person":"Feeza","year":2025,"month":1,"day":30,"raw":"Malaysia Holiday"},{"person":"Feeza","year":2025,"month":1,"day":31,"raw":"Malaysia Holiday"},{"person":"Veronica","year":2025,"month":1,"day":1,"raw":"Colombian Holiday"},{"person":"Veronica","year":2025,"month":1,"day":6,"raw":"Colombian Holiday"},{"person":"Amir","year":2025,"month":1,"day":1,"raw":"Malaysia Holiday"},{"person":"Amir","year":2025,"month":1,"day":29,"raw":"Malaysia Holiday"},{"person":"Amir","year":2025,"month":1,"day":30,"raw":"Malaysia Holiday"},{"person":"Amir","year":2025,"month":1,"day":31,"raw":"Malaysia Holiday"},{"person":"Doris","year":2025,"month":2,"day":17,"raw":"Canada Holiday"},{"person":"Katherine","year":2025,"month":2,"day":3,"raw":"X"},{"person":"Katherine","year":2025,"month":2,"day":4,"raw":"X"},{"person":"Katherine","year":2025,"month":2,"day":5,"raw":"X"},{"person":"Katherine","year":2025,"month":2,"day":6,"raw":"X"},{"person":"Katherine","year":2025,"month":2,"day":7,"raw":"X"},{"person":"Katherine","year":2025,"month":2,"day":17,"raw":"Canada Holiday"},{"person":"Maryam","year":2025,"month":2,"day":17,"raw":"Canada Holiday"},{"person":"Feeza","year":2025,"month":2,"day":11,"raw":"Malaysia Holiday"},{"person":"Veronica","year":2025,"month":2,"day":19,"raw":"X"},{"person":"Veronica","year":2025,"month":2,"day":20,"raw":"X"},{"person":"Veronica","year":2025,"month":2,"day":21,"raw":"X"},{"person":"Veronica","year":2025,"month":2,"day":24,"raw":"X"},{"person":"Amir","year":2025,"month":2,"day":11,"raw":"Malaysia Holiday"},{"person":"Iqbal","year":2025,"month":3,"day":14,"raw":"Indian Holiday"},{"person":"Iqbal","year":2025,"month":3,"day":27,"raw":"X"},{"person":"Iqbal","year":2025,"month":3,"day":28,"raw":"X"},{"person":"Iqbal","year":2025,"month":3,"day":31,"raw":"Indian Holiday Opt"},{"person":"Maryam","year":2025,"month":3,"day":21,"raw":"X"},{"person":"Maryam","year":2025,"month":3,"day":24,"raw":"X"},{"person":"Maryam","year":2025,"month":3,"day":25,"raw":"X"},{"person":"Feeza","year":2025,"month":3,"day":18,"raw":"Malaysia Holiday"},{"person":"Feeza","year":2025,"month":3,"day":28,"raw":"X"},{"person":"Feeza","year":2025,"month":3,"day":31,"raw":"Malaysia Holiday"},{"person":"Veronica","year":2025,"month":3,"day":24,"raw":"Colombian Holiday"},{"person":"Amir","year":2025,"month":3,"day":18,"raw":"Malaysia Holiday"},{"person":"Amir","year":2025,"month":3,"day":31,"raw":"Malaysia Holiday"},{"person":"Iqbal","year":2025,"month":4,"day":1,"raw":"X"},{"person":"Iqbal","year":2025,"month":4,"day":2,"raw":"X"},{"person":"Iqbal","year":2025,"month":4,"day":3,"raw":"X"},{"person":"Iqbal","year":2025,"month":4,"day":4,"raw":"X"},{"person":"Iqbal","year":2025,"month":4,"day":18,"raw":"Indian Holiday Opt"},{"person":"Katherine","year":2025,"month":4,"day":18,"raw":"Canada Holiday"},{"person":"Maryam","year":2025,"month":4,"day":18,"raw":"Canada Holiday"},{"person":"Feeza","year":2025,"month":4,"day":1,"raw":"Malaysia Holiday"},{"person":"Feeza","year":2025,"month":4,"day":2,"raw":"X"},{"person":"Feeza","year":2025,"month":4,"day":3,"raw":"X"},{"person":"Feeza","year":2025,"month":4,"day":4,"raw":"X"},{"person":"Veronica","year":2025,"month":4,"day":17,"raw":"Colombian Holiday"},{"person":"Veronica","year":2025,"month":4,"day":18,"raw":"Colombian Holiday"},{"person":"Amir","year":2025,"month":4,"day":1,"raw":"Malaysia Holiday"},{"person":"Amir","year":2025,"month":4,"day":2,"raw":"X"},{"person":"Amir","year":2025,"month":4,"day":3,"raw":"X"},{"person":"Amir","year":2025,"month":4,"day":4,"raw":"X"},{"person":"Daniela","year":2025,"month":4,"day":17,"raw":"Colombian Holiday"},{"person":"Daniela","year":2025,"month":4,"day":18,"raw":"Colombian Holiday"},{"person":"Iqbal","year":2025,"month":5,"day":1,"raw":"Indian Holiday"},{"person":"Katherine","year":2025,"month":5,"day":19,"raw":"Canada Holiday"},{"person":"Maryam","year":2025,"month":5,"day":15,"raw":"X"},{"person":"Maryam","year":2025,"month":5,"day":16,"raw":"X"},{"person":"Maryam","year":2025,"month":5,"day":19,"raw":"Canada Holiday"},{"person":"Feeza","year":2025,"month":5,"day":1,"raw":"Malaysia Holiday"},{"person":"Feeza","year":2025,"month":5,"day":12,"raw":"Malaysia Holiday"},{"person":"Veronica","year":2025,"month":5,"day":1,"raw":"Colombian Holiday"},{"person":"Amir","year":2025,"month":5,"day":1,"raw":"Malaysia Holiday"},{"person":"Amir","year":2025,"month":5,"day":12,"raw":"Malaysia Holiday"},{"person":"Amir","year":2025,"month":5,"day":30,"raw":"X"},{"person":"Daniela","year":2025,"month":5,"day":1,"raw":"Colombian Holiday"},{"person":"Iqbal","year":2025,"month":6,"day":9,"raw":"Working from Office"},{"person":"Iqbal","year":2025,"month":6,"day":17,"raw":"X"},{"person":"Katherine","year":2025,"month":6,"day":9,"raw":"X"},{"person":"Katherine","year":2025,"month":6,"day":10,"raw":"X"},{"person":"Katherine","year":2025,"month":6,"day":11,"raw":"X"},{"person":"Katherine","year":2025,"month":6,"day":12,"raw":"X"},{"person":"Katherine","year":2025,"month":6,"day":13,"raw":"X"},{"person":"Maryam","year":2025,"month":6,"day":16,"raw":"X"},{"person":"Maryam","year":2025,"month":6,"day":30,"raw":"X"},{"person":"Feeza","year":2025,"month":6,"day":2,"raw":"Malaysia Holiday"},{"person":"Feeza","year":2025,"month":6,"day":6,"raw":"Malaysia Holiday"},{"person":"Feeza","year":2025,"month":6,"day":27,"raw":"Malaysia Holiday"},{"person":"Veronica","year":2025,"month":6,"day":2,"raw":"Colombian Holiday"},{"person":"Veronica","year":2025,"month":6,"day":23,"raw":"Colombian Holiday"},{"person":"Veronica","year":2025,"month":6,"day":26,"raw":"X"},{"person":"Veronica","year":2025,"month":6,"day":27,"raw":"X"},{"person":"Veronica","year":2025,"month":6,"day":30,"raw":"Colombian Holiday"},{"person":"Amir","year":2025,"month":6,"day":2,"raw":"Malaysia Holiday"},{"person":"Amir","year":2025,"month":6,"day":3,"raw":"X"},{"person":"Amir","year":2025,"month":6,"day":4,"raw":"X"},{"person":"Amir","year":2025,"month":6,"day":5,"raw":"X"},{"person":"Amir","year":2025,"month":6,"day":6,"raw":"Malaysia Holiday"},{"person":"Amir","year":2025,"month":6,"day":27,"raw":"Malaysia Holiday"},{"person":"Daniela","year":2025,"month":6,"day":2,"raw":"Colombian Holiday"},{"person":"Daniela","year":2025,"month":6,"day":23,"raw":"Colombian Holiday"},{"person":"Daniela","year":2025,"month":6,"day":30,"raw":"Colombian Holiday"},{"person":"Katherine","year":2025,"month":7,"day":1,"raw":"Canada Holiday"},{"person":"Maryam","year":2025,"month":7,"day":1,"raw":"Canada Holiday"},{"person":"Maryam","year":2025,"month":7,"day":2,"raw":"X"},{"person":"Maryam","year":2025,"month":7,"day":3,"raw":"X"},{"person":"Maryam","year":2025,"month":7,"day":4,"raw":"X"},{"person":"Veronica","year":2025,"month":7,"day":1,"raw":"X"},{"person":"Veronica","year":2025,"month":7,"day":20,"raw":"Colombian Holiday"},{"person":"Daniela","year":2025,"month":7,"day":20,"raw":"Colombian Holiday"},{"person":"Iqbal","year":2025,"month":8,"day":15,"raw":"Indian Holiday"},{"person":"Katherine","year":2025,"month":8,"day":4,"raw":"Canada Holiday"},{"person":"Maryam","year":2025,"month":8,"day":4,"raw":"Canada Holiday"},{"person":"Maryam","year":2025,"month":8,"day":18,"raw":"X"},{"person":"Maryam","year":2025,"month":8,"day":19,"raw":"X"},{"person":"Maryam","year":2025,"month":8,"day":20,"raw":"X"},{"person":"Maryam","year":2025,"month":8,"day":21,"raw":"X"},{"person":"Maryam","year":2025,"month":8,"day":22,"raw":"X"},{"person":"Maryam","year":2025,"month":8,"day":25,"raw":"X"},{"person":"Maryam","year":2025,"month":8,"day":26,"raw":"X"},{"person":"Maryam","year":2025,"month":8,"day":27,"raw":"X"},{"person":"Maryam","year":2025,"month":8,"day":28,"raw":"X"},{"person":"Maryam","year":2025,"month":8,"day":29,"raw":"X"},{"person":"Veronica","year":2025,"month":8,"day":7,"raw":"Colombian Holiday"},{"person":"Veronica","year":2025,"month":8,"day":18,"raw":"Colombian Holiday"},{"person":"Veronica","year":2025,"month":8,"day":29,"raw":"X"},{"person":"Amir","year":2025,"month":8,"day":1,"raw":"X"},{"person":"Daniela","year":2025,"month":8,"day":7,"raw":"Colombian Holiday"},{"person":"Daniela","year":2025,"month":8,"day":18,"raw":"Colombian Holiday"},{"person":"Iqbal","year":2025,"month":9,"day":15,"raw":"X"},{"person":"Iqbal","year":2025,"month":9,"day":16,"raw":"X"},{"person":"Iqbal","year":2025,"month":9,"day":17,"raw":"X"},{"person":"Iqbal","year":2025,"month":9,"day":18,"raw":"X"},{"person":"Iqbal","year":2025,"month":9,"day":19,"raw":"X"},{"person":"Iqbal","year":2025,"month":9,"day":25,"raw":"X"},{"person":"Iqbal","year":2025,"month":9,"day":26,"raw":"X"},{"person":"Iqbal","year":2025,"month":9,"day":29,"raw":"X"},{"person":"Iqbal","year":2025,"month":9,"day":30,"raw":"X"},{"person":"Katherine","year":2025,"month":9,"day":1,"raw":"Canada Holiday"},{"person":"Katherine","year":2025,"month":9,"day":2,"raw":"X"},{"person":"Katherine","year":2025,"month":9,"day":3,"raw":"X"},{"person":"Katherine","year":2025,"month":9,"day":4,"raw":"X"},{"person":"Katherine","year":2025,"month":9,"day":5,"raw":"X"},{"person":"Katherine","year":2025,"month":9,"day":8,"raw":"X"},{"person":"Katherine","year":2025,"month":9,"day":9,"raw":"X"},{"person":"Katherine","year":2025,"month":9,"day":10,"raw":"X"},{"person":"Katherine","year":2025,"month":9,"day":24,"raw":"PM Off"},{"person":"Katherine","year":2025,"month":9,"day":25,"raw":"AM off"},{"person":"Maryam","year":2025,"month":9,"day":1,"raw":"Canada Holiday"},{"person":"Feeza","year":2025,"month":9,"day":1,"raw":"Malaysia Holiday"},{"person":"Feeza","year":2025,"month":9,"day":5,"raw":"Malaysia Holiday"},{"person":"Feeza","year":2025,"month":9,"day":15,"raw":"Malaysia Holiday"},{"person":"Feeza","year":2025,"month":9,"day":16,"raw":"Malaysia Holiday"},{"person":"Amir","year":2025,"month":9,"day":1,"raw":"Malaysia Holiday"},{"person":"Amir","year":2025,"month":9,"day":2,"raw":"X"},{"person":"Amir","year":2025,"month":9,"day":3,"raw":"X"},{"person":"Amir","year":2025,"month":9,"day":4,"raw":"X"},{"person":"Amir","year":2025,"month":9,"day":5,"raw":"Malaysia Holiday"},{"person":"Amir","year":2025,"month":9,"day":15,"raw":"Malaysia Holiday"},{"person":"Amir","year":2025,"month":9,"day":16,"raw":"Malaysia Holiday"},{"person":"Iqbal","year":2025,"month":10,"day":1,"raw":"X"},{"person":"Iqbal","year":2025,"month":10,"day":2,"raw":"Indian Holiday"},{"person":"Iqbal","year":2025,"month":10,"day":21,"raw":"Indian Holiday"},{"person":"Iqbal","year":2025,"month":10,"day":22,"raw":"Indian Holiday"},{"person":"Katherine","year":2025,"month":10,"day":13,"raw":"Canada Holiday"},{"person":"Maryam","year":2025,"month":10,"day":10,"raw":"X"},{"person":"Maryam","year":2025,"month":10,"day":13,"raw":"Canada Holiday"},{"person":"Feeza","year":2025,"month":10,"day":20,"raw":"Malaysia Holiday"},{"person":"Veronica","year":2025,"month":10,"day":14,"raw":"X"},{"person":"Amir","year":2025,"month":10,"day":20,"raw":"Malaysia Holiday"},{"person":"Daniela","year":2025,"month":10,"day":3,"raw":"X"},{"person":"Daniela","year":2025,"month":10,"day":13,"raw":"Colombian Holiday"},{"person":"Katherine","year":2025,"month":11,"day":11,"raw":"Canada Holiday"},{"person":"Katherine","year":2025,"month":11,"day":24,"raw":"X"},{"person":"Katherine","year":2025,"month":11,"day":25,"raw":"X"},{"person":"Katherine","year":2025,"month":11,"day":26,"raw":"X"},{"person":"Katherine","year":2025,"month":11,"day":27,"raw":"X"},{"person":"Katherine","year":2025,"month":11,"day":28,"raw":"X"},{"person":"Maryam","year":2025,"month":11,"day":11,"raw":"Canada Holiday"},{"person":"Veronica","year":2025,"month":11,"day":3,"raw":"Colombian Holiday"},{"person":"Veronica","year":2025,"month":11,"day":13,"raw":"X"},{"person":"Veronica","year":2025,"month":11,"day":14,"raw":"X"},{"person":"Veronica","year":2025,"month":11,"day":20,"raw":"X"},{"person":"Daniela","year":2025,"month":11,"day":3,"raw":"Colombian Holiday"},{"person":"Daniela","year":2025,"month":11,"day":13,"raw":"X"},{"person":"Daniela","year":2025,"month":11,"day":17,"raw":"Colombian Holiday"},{"person":"Iqbal","year":2025,"month":12,"day":25,"raw":"Indian Holiday"},{"person":"Iqbal","year":2025,"month":12,"day":29,"raw":"X"},{"person":"Iqbal","year":2025,"month":12,"day":30,"raw":"X"},{"person":"Katherine","year":2025,"month":12,"day":9,"raw":"X"},{"person":"Katherine","year":2025,"month":12,"day":10,"raw":"X"},{"person":"Katherine","year":2025,"month":12,"day":11,"raw":"X"},{"person":"Katherine","year":2025,"month":12,"day":12,"raw":"X"},{"person":"Katherine","year":2025,"month":12,"day":25,"raw":"Canada Holiday"},{"person":"Katherine","year":2025,"month":12,"day":26,"raw":"Canada Holiday"},{"person":"Maryam","year":2025,"month":12,"day":19,"raw":"X"},{"person":"Maryam","year":2025,"month":12,"day":22,"raw":"X"},{"person":"Maryam","year":2025,"month":12,"day":23,"raw":"X"},{"person":"Maryam","year":2025,"month":12,"day":24,"raw":"X"},{"person":"Maryam","year":2025,"month":12,"day":25,"raw":"Canada Holiday"},{"person":"Maryam","year":2025,"month":12,"day":26,"raw":"Canada Holiday"},{"person":"Maryam","year":2025,"month":12,"day":29,"raw":"X"},{"person":"Maryam","year":2025,"month":12,"day":30,"raw":"X"},{"person":"Maryam","year":2025,"month":12,"day":31,"raw":"X"},{"person":"Feeza","year":2025,"month":12,"day":25,"raw":"Malaysia Holiday"},{"person":"Veronica","year":2025,"month":12,"day":8,"raw":"Colombian Holiday"},{"person":"Veronica","year":2025,"month":12,"day":22,"raw":"X"},{"person":"Veronica","year":2025,"month":12,"day":23,"raw":"X"},{"person":"Veronica","year":2025,"month":12,"day":24,"raw":"X"},{"person":"Veronica","year":2025,"month":12,"day":25,"raw":"Colombian Holiday"},{"person":"Veronica","year":2025,"month":12,"day":26,"raw":"X"},{"person":"Veronica","year":2025,"month":12,"day":29,"raw":"X"},{"person":"Veronica","year":2025,"month":12,"day":30,"raw":"X"},{"person":"Veronica","year":2025,"month":12,"day":31,"raw":"X"},{"person":"Amir","year":2025,"month":12,"day":8,"raw":"X"},{"person":"Amir","year":2025,"month":12,"day":9,"raw":"X"},{"person":"Amir","year":2025,"month":12,"day":10,"raw":"X"},{"person":"Amir","year":2025,"month":12,"day":11,"raw":"X"},{"person":"Amir","year":2025,"month":12,"day":25,"raw":"Malaysia Holiday"},{"person":"Daniela","year":2025,"month":12,"day":8,"raw":"Colombian Holiday"},{"person":"Daniela","year":2025,"month":12,"day":15,"raw":"X"},{"person":"Daniela","year":2025,"month":12,"day":16,"raw":"X"},{"person":"Daniela","year":2025,"month":12,"day":17,"raw":"X"},{"person":"Daniela","year":2025,"month":12,"day":18,"raw":"X"},{"person":"Daniela","year":2025,"month":12,"day":19,"raw":"X"},{"person":"Daniela","year":2025,"month":12,"day":25,"raw":"Colombian Holiday"},{"person":"Iqbal","year":2026,"month":1,"day":1,"raw":"Indian Holiday"},{"person":"Iqbal","year":2026,"month":1,"day":19,"raw":"Working from Office"},{"person":"Iqbal","year":2026,"month":1,"day":26,"raw":"Indian Holiday"},{"person":"Katherine","year":2026,"month":1,"day":1,"raw":"Canada Holiday"},{"person":"Maryam","year":2026,"month":1,"day":1,"raw":"Canada Holiday"},{"person":"Maryam","year":2026,"month":1,"day":2,"raw":"X"},{"person":"Amir","year":2026,"month":1,"day":1,"raw":"Malaysia Holiday"},{"person":"Veronica","year":2026,"month":1,"day":1,"raw":"Colombian Holiday"},{"person":"Veronica","year":2026,"month":1,"day":2,"raw":"X"},{"person":"Veronica","year":2026,"month":1,"day":12,"raw":"Colombian Holiday"},{"person":"Veronica","year":2026,"month":1,"day":23,"raw":"X"},{"person":"Veronica","year":2026,"month":1,"day":26,"raw":"X"},{"person":"Daniela","year":2026,"month":1,"day":1,"raw":"Colombian Holiday"},{"person":"Daniela","year":2026,"month":1,"day":12,"raw":"Colombian Holiday"},{"person":"Katherine","year":2026,"month":2,"day":16,"raw":"Canada Holiday"},{"person":"Katherine","year":2026,"month":2,"day":17,"raw":"X"},{"person":"Katherine","year":2026,"month":2,"day":18,"raw":"X"},{"person":"Katherine","year":2026,"month":2,"day":19,"raw":"X"},{"person":"Katherine","year":2026,"month":2,"day":20,"raw":"X"},{"person":"Maryam","year":2026,"month":2,"day":16,"raw":"Canada Holiday"},{"person":"Amir","year":2026,"month":2,"day":2,"raw":"Malaysia Holiday"},{"person":"Amir","year":2026,"month":2,"day":3,"raw":"Malaysia Holiday"},{"person":"Amir","year":2026,"month":2,"day":17,"raw":"Malaysia Holiday"},{"person":"Amir","year":2026,"month":2,"day":18,"raw":"Malaysia Holiday"},{"person":"Veronica","year":2026,"month":2,"day":6,"raw":"X"},{"person":"Iqbal","year":2026,"month":3,"day":3,"raw":"Indian Holiday"},{"person":"Iqbal","year":2026,"month":3,"day":20,"raw":"Indian Holiday Opt"},{"person":"Maryam","year":2026,"month":3,"day":2,"raw":"X"},{"person":"Maryam","year":2026,"month":3,"day":3,"raw":"X"},{"person":"Maryam","year":2026,"month":3,"day":20,"raw":"X"},{"person":"Maryam","year":2026,"month":3,"day":23,"raw":"X"},{"person":"Maryam","year":2026,"month":3,"day":24,"raw":"X"},{"person":"Maryam","year":2026,"month":3,"day":25,"raw":"X"},{"person":"Maryam","year":2026,"month":3,"day":26,"raw":"X"},{"person":"Maryam","year":2026,"month":3,"day":27,"raw":"X"},{"person":"Amir","year":2026,"month":3,"day":6,"raw":"Malaysia Holiday"},{"person":"Amir","year":2026,"month":3,"day":20,"raw":"Malaysia Holiday"},{"person":"Amir","year":2026,"month":3,"day":23,"raw":"Malaysia Holiday"},{"person":"Amir","year":2026,"month":3,"day":24,"raw":"Malaysia Holiday"},{"person":"Amir","year":2026,"month":3,"day":25,"raw":"X"},{"person":"Veronica","year":2026,"month":3,"day":23,"raw":"Colombian Holiday"},{"person":"Daniela","year":2026,"month":3,"day":23,"raw":"Colombian Holiday"},{"person":"Iqbal","year":2026,"month":4,"day":2,"raw":"X"},{"person":"Iqbal","year":2026,"month":4,"day":3,"raw":"X"},{"person":"Katherine","year":2026,"month":4,"day":3,"raw":"Canada Holiday"},{"person":"Maryam","year":2026,"month":4,"day":3,"raw":"Canada Holiday"},{"person":"Veronica","year":2026,"month":4,"day":2,"raw":"Colombian Holiday"},{"person":"Veronica","year":2026,"month":4,"day":3,"raw":"Colombian Holiday"},{"person":"Veronica","year":2026,"month":4,"day":17,"raw":"Half day"},{"person":"Veronica","year":2026,"month":4,"day":20,"raw":"Half day"},{"person":"Daniela","year":2026,"month":4,"day":2,"raw":"Colombian Holiday"},{"person":"Daniela","year":2026,"month":4,"day":3,"raw":"Colombian Holiday"},{"person":"Iqbal","year":2026,"month":5,"day":1,"raw":"Indian Holiday"},{"person":"Iqbal","year":2026,"month":5,"day":4,"raw":"X"},{"person":"Iqbal","year":2026,"month":5,"day":5,"raw":"X"},{"person":"Iqbal","year":2026,"month":5,"day":28,"raw":"X"},{"person":"Iqbal","year":2026,"month":5,"day":29,"raw":"X"},{"person":"Katherine","year":2026,"month":5,"day":18,"raw":"Canada Holiday"},{"person":"Maryam","year":2026,"month":5,"day":7,"raw":"X"},{"person":"Maryam","year":2026,"month":5,"day":8,"raw":"Flight"},{"person":"Maryam","year":2026,"month":5,"day":11,"raw":"Working in Bogota Office"},{"person":"Maryam","year":2026,"month":5,"day":15,"raw":"Flight"},{"person":"Maryam","year":2026,"month":5,"day":18,"raw":"Canada Holiday"},{"person":"Amir","year":2026,"month":5,"day":1,"raw":"Malaysia Holiday"},{"person":"Amir","year":2026,"month":5,"day":14,"raw":"X"},{"person":"Amir","year":2026,"month":5,"day":15,"raw":"X"},{"person":"Amir","year":2026,"month":5,"day":18,"raw":"X"},{"person":"Amir","year":2026,"month":5,"day":19,"raw":"X"},{"person":"Amir","year":2026,"month":5,"day":20,"raw":"X"},{"person":"Amir","year":2026,"month":5,"day":21,"raw":"X"},{"person":"Amir","year":2026,"month":5,"day":22,"raw":"X"},{"person":"Amir","year":2026,"month":5,"day":25,"raw":"X"},{"person":"Amir","year":2026,"month":5,"day":26,"raw":"X"},{"person":"Amir","year":2026,"month":5,"day":27,"raw":"Malaysia Holiday"},{"person":"Amir","year":2026,"month":5,"day":28,"raw":"X"},{"person":"Amir","year":2026,"month":5,"day":29,"raw":"X"},{"person":"Veronica","year":2026,"month":5,"day":1,"raw":"Colombian Holiday"},{"person":"Veronica","year":2026,"month":5,"day":18,"raw":"Colombian Holiday"},{"person":"Daniela","year":2026,"month":5,"day":1,"raw":"Colombian Holiday"},{"person":"Daniela","year":2026,"month":5,"day":18,"raw":"Colombian Holiday"},{"person":"Katherine","year":2026,"month":6,"day":1,"raw":"X"},{"person":"Katherine","year":2026,"month":6,"day":2,"raw":"X"},{"person":"Katherine","year":2026,"month":6,"day":3,"raw":"X"},{"person":"Katherine","year":2026,"month":6,"day":4,"raw":"X"},{"person":"Katherine","year":2026,"month":6,"day":5,"raw":"X"},{"person":"Katherine","year":2026,"month":6,"day":8,"raw":"X"},{"person":"Katherine","year":2026,"month":6,"day":9,"raw":"X"},{"person":"Katherine","year":2026,"month":6,"day":10,"raw":"X"},{"person":"Katherine","year":2026,"month":6,"day":11,"raw":"X"},{"person":"Katherine","year":2026,"month":6,"day":12,"raw":"X"},{"person":"Maryam","year":2026,"month":6,"day":26,"raw":"X"},{"person":"Maryam","year":2026,"month":6,"day":30,"raw":"X"},{"person":"Amir","year":2026,"month":6,"day":1,"raw":"Malaysia Holiday"},{"person":"Amir","year":2026,"month":6,"day":2,"raw":"Malaysia Holiday"},{"person":"Amir","year":2026,"month":6,"day":17,"raw":"Malaysia Holiday"},{"person":"Veronica","year":2026,"month":6,"day":8,"raw":"Colombian Holiday"},{"person":"Veronica","year":2026,"month":6,"day":15,"raw":"Colombian Holiday"},{"person":"Veronica","year":2026,"month":6,"day":29,"raw":"Colombian Holiday"},{"person":"Daniela","year":2026,"month":6,"day":8,"raw":"Colombian Holiday"},{"person":"Daniela","year":2026,"month":6,"day":15,"raw":"Colombian Holiday"},{"person":"Daniela","year":2026,"month":6,"day":29,"raw":"Colombian Holiday"},{"person":"Katherine","year":2026,"month":7,"day":1,"raw":"Canada Holiday"},{"person":"Maryam","year":2026,"month":7,"day":1,"raw":"Canada Holiday"},{"person":"Maryam","year":2026,"month":7,"day":24,"raw":"X"},{"person":"Veronica","year":2026,"month":7,"day":13,"raw":"Colombian Holiday"},{"person":"Veronica","year":2026,"month":7,"day":20,"raw":"Colombian Holiday"},{"person":"Daniela","year":2026,"month":7,"day":6,"raw":"X"},{"person":"Daniela","year":2026,"month":7,"day":7,"raw":"X"},{"person":"Daniela","year":2026,"month":7,"day":8,"raw":"X"},{"person":"Daniela","year":2026,"month":7,"day":9,"raw":"X"},{"person":"Daniela","year":2026,"month":7,"day":10,"raw":"X"},{"person":"Daniela","year":2026,"month":7,"day":13,"raw":"Colombian Holiday"},{"person":"Daniela","year":2026,"month":7,"day":20,"raw":"Colombian Holiday"},{"person":"Katherine","year":2026,"month":8,"day":3,"raw":"Canada Holiday"},{"person":"Maryam","year":2026,"month":8,"day":3,"raw":"Canada Holiday"},{"person":"Maryam","year":2026,"month":8,"day":4,"raw":"X"},{"person":"Maryam","year":2026,"month":8,"day":5,"raw":"X"},{"person":"Maryam","year":2026,"month":8,"day":6,"raw":"X"},{"person":"Maryam","year":2026,"month":8,"day":7,"raw":"X"},{"person":"Maryam","year":2026,"month":8,"day":10,"raw":"X"},{"person":"Maryam","year":2026,"month":8,"day":18,"raw":"X"},{"person":"Maryam","year":2026,"month":8,"day":19,"raw":"X"},{"person":"Maryam","year":2026,"month":8,"day":20,"raw":"X"},{"person":"Maryam","year":2026,"month":8,"day":21,"raw":"X"},{"person":"Amir","year":2026,"month":8,"day":25,"raw":"Malaysia Holiday"},{"person":"Amir","year":2026,"month":8,"day":31,"raw":"Malaysia Holiday"},{"person":"Veronica","year":2026,"month":8,"day":7,"raw":"Colombian Holiday"},{"person":"Veronica","year":2026,"month":8,"day":17,"raw":"Colombian Holiday"},{"person":"Daniela","year":2026,"month":8,"day":7,"raw":"Colombian Holiday"},{"person":"Daniela","year":2026,"month":8,"day":17,"raw":"Colombian Holiday"},{"person":"Iqbal","year":2026,"month":9,"day":14,"raw":"Indian Holiday"},{"person":"Iqbal","year":2026,"month":9,"day":25,"raw":"Indian Holiday"},{"person":"Katherine","year":2026,"month":9,"day":7,"raw":"Canada Holiday"},{"person":"Maryam","year":2026,"month":9,"day":7,"raw":"Canada Holiday"},{"person":"Amir","year":2026,"month":9,"day":15,"raw":"Malaysia Holiday"},{"person":"Amir","year":2026,"month":9,"day":16,"raw":"Malaysia Holiday"},{"person":"Iqbal","year":2026,"month":10,"day":2,"raw":"Indian Holiday"},{"person":"Iqbal","year":2026,"month":10,"day":20,"raw":"Indian Holiday"},{"person":"Katherine","year":2026,"month":10,"day":12,"raw":"Canada Holiday"},{"person":"Maryam","year":2026,"month":10,"day":12,"raw":"Canada Holiday"},{"person":"Veronica","year":2026,"month":10,"day":12,"raw":"Colombian Holiday"},{"person":"Daniela","year":2026,"month":10,"day":12,"raw":"Colombian Holiday"},{"person":"Iqbal","year":2026,"month":11,"day":10,"raw":"Indian Holiday"},{"person":"Katherine","year":2026,"month":11,"day":11,"raw":"Canada Holiday"},{"person":"Maryam","year":2026,"month":11,"day":11,"raw":"Canada Holiday"},{"person":"Amir","year":2026,"month":11,"day":9,"raw":"Malaysia Holiday"},{"person":"Veronica","year":2026,"month":11,"day":2,"raw":"Colombian Holiday"},{"person":"Veronica","year":2026,"month":11,"day":16,"raw":"Colombian Holiday"},{"person":"Daniela","year":2026,"month":11,"day":2,"raw":"Colombian Holiday"},{"person":"Daniela","year":2026,"month":11,"day":16,"raw":"Colombian Holiday"},{"person":"Iqbal","year":2026,"month":12,"day":25,"raw":"Indian Holiday"},{"person":"Katherine","year":2026,"month":12,"day":25,"raw":"Canada Holiday"},{"person":"Maryam","year":2026,"month":12,"day":25,"raw":"Canada Holiday"},{"person":"Amir","year":2026,"month":12,"day":25,"raw":"Malaysia Holiday"},{"person":"Veronica","year":2026,"month":12,"day":8,"raw":"Colombian Holiday"},{"person":"Veronica","year":2026,"month":12,"day":25,"raw":"Colombian Holiday"},{"person":"Veronica","year":2026,"month":12,"day":28,"raw":"X"},{"person":"Veronica","year":2026,"month":12,"day":29,"raw":"X"},{"person":"Veronica","year":2026,"month":12,"day":30,"raw":"X"},{"person":"Veronica","year":2026,"month":12,"day":31,"raw":"X"},{"person":"Daniela","year":2026,"month":12,"day":8,"raw":"Colombian Holiday"},{"person":"Daniela","year":2026,"month":12,"day":25,"raw":"Colombian Holiday"}];
+const MONTHS=["January","February","March","April","May","June","July","August","September","October","November","December"];
+const PCOLORS=["#4f46e5","#0ea5e9","#10b981","#f59e0b","#ef4444","#8b5cf6","#ec4899","#14b8a6","#f97316","#6366f1","#0891b2","#db2777"];
+const DEFAULT_PEOPLE=[...new Set(RAW.map(e=>e.person))].sort();
+const KEY="valnav_leave_v4";
+const PKEY="valnav_people_v2";
+// ===== PASTE YOUR FIREBASE CONFIG BELOW (from Firebase console > Project settings > Your apps) =====
+const FIREBASE_CONFIG={
+  apiKey:"AIzaSyCt-DAh-BwW2_9ENO6Zx6EVxfbdl4xYK2A",
+  authDomain:"val-nav-leave-plan.firebaseapp.com",
+  projectId:"val-nav-leave-plan",
+  storageBucket:"val-nav-leave-plan.firebasestorage.app",
+  messagingSenderId:"453802883396",
+  appId:"1:453802883396:web:b2d2f87c90cc2bdb317f11"
+};
+
+let PEOPLE=[];
+const personColor=p=>PCOLORS[Math.max(0,PEOPLE.indexOf(p))%PCOLORS.length];
+const initials=p=>p.slice(0,2).toUpperCase();
+
+function classify(raw){
+  const r=(raw||"").toLowerCase();
+  if(/canada/.test(r)) return {type:"canada"};
+  if(/india/.test(r)) return {type:"indian"};
+  if(/malaysia/.test(r)) return {type:"malaysia"};
+  if(/colombia/.test(r)) return {type:"colombian"};
+  if(raw==="X"||raw==="x") return {type:"timeoff"};
+  return {type:"custom",label:raw};
+}
+const ymd=dt=>`${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+const TYPES=[{v:'timeoff',name:'Time Off',color:'#16a34a'},{v:'indian',name:'Indian Holiday',color:'#f97316'},{v:'malaysia',name:'Malaysia Holiday',color:'#2563eb'},{v:'colombian',name:'Colombian Holiday',color:'#eab308'},{v:'canada',name:'Canada Holiday',color:'#dc2626'},{v:'custom',name:'Custom',color:'#64748b'}];
+const TYPEMAP=Object.fromEntries(TYPES.map(t=>[t.v,t]));
+const typeColor=t=>(TYPEMAP[t]||TYPES[0]).color;
+function labelOf(t){return (TYPEMAP[t]||TYPES[0]).name;}
+function entryLabel(e){return e.type==='custom'?(e.label||'Other'):labelOf(e.type);}
+
+let ENTRIES=[];
+function seed(){
+  return RAW.map((e,i)=>{
+    const c=classify(e.raw);
+    const d=`${e.year}-${String(e.month).padStart(2,'0')}-${String(e.day).padStart(2,'0')}`;
+    return {id:'s'+i,person:e.person,date:d,type:c.type,label:c.label||''};
+  });
+}
+// ---- storage: Firebase cloud (shared) when configured, else localStorage (per-browser) ----
+const CLOUD=!/PASTE_/.test(FIREBASE_CONFIG.apiKey);
+let db=null,cloudReady=false;
+function setStatus(txt,ok){const el=document.getElementById('cloudStatus');if(el){el.textContent=txt;el.style.background=ok?'rgba(255,255,255,.28)':'rgba(255,255,255,.15)';}}
+function saveLocal(){try{localStorage.setItem(KEY,JSON.stringify(ENTRIES));}catch(e){}}
+function savePeopleLocal(){try{localStorage.setItem(PKEY,JSON.stringify(PEOPLE));}catch(e){}}
+function loadLocal(){
+  try{const s=localStorage.getItem(KEY);if(s){ENTRIES=JSON.parse(s);}else{ENTRIES=seed();saveLocal();}}catch(e){ENTRIES=seed();}
+  try{const p=localStorage.getItem(PKEY);if(p){PEOPLE=JSON.parse(p);}else{PEOPLE=DEFAULT_PEOPLE.slice();savePeopleLocal();}}catch(e){PEOPLE=DEFAULT_PEOPLE.slice();}
+}
+function newEntry(e){return {person:e.person,date:e.date,type:e.type,label:e.label||''};}
+async function commitBatches(fns){for(let i=0;i<fns.length;i+=450){const b=db.batch();fns.slice(i,i+450).forEach(fn=>fn(b));await b.commit();}}
+function dbAddEntries(list){
+  if(CLOUD){commitBatches(list.map(e=>b=>b.set(db.collection('leave').doc(),newEntry(e)))).catch(()=>setStatus('⚠ Save failed',false));}
+  else{list.forEach(e=>ENTRIES.push({id:'u'+Date.now()+Math.random().toString(36).slice(2,6),...newEntry(e)}));saveLocal();refresh();}
+}
+function dbDeleteEntries(ids){
+  if(CLOUD){commitBatches(ids.map(id=>b=>b.delete(db.collection('leave').doc(id)))).catch(()=>setStatus('⚠ Delete failed',false));}
+  else{const s=new Set(ids);ENTRIES=ENTRIES.filter(x=>!s.has(x.id));saveLocal();refresh();}
+}
+function dbSetPeople(arr){
+  PEOPLE=arr.slice();
+  if(CLOUD){db.collection('meta').doc('people').set({list:PEOPLE}).catch(()=>setStatus('⚠ Save failed',false));}
+  else{savePeopleLocal();rebuildDropdowns();refresh();}
+}
+function dbReplaceAll(entries,people){
+  if(CLOUD){
+    db.collection('leave').get().then(snap=>{
+      const dels=snap.docs.map(d=>b=>b.delete(d.ref));
+      const adds=entries.map(e=>b=>b.set(db.collection('leave').doc(),newEntry(e)));
+      commitBatches(dels.concat(adds)).catch(()=>setStatus('⚠ Save failed',false));
+    });
+    dbSetPeople(people);
+  }else{
+    ENTRIES=entries.map(e=>({id:'u'+Date.now()+Math.random().toString(36).slice(2,6),...newEntry(e)}));
+    PEOPLE=people.slice();saveLocal();savePeopleLocal();rebuildDropdowns();refresh();
+  }
+}
+function seedCloud(){
+  const fns=seed().map(e=>b=>b.set(db.collection('leave').doc(),newEntry(e)));
+  fns.push(b=>b.set(db.collection('meta').doc('people'),{list:DEFAULT_PEOPLE.slice()}));
+  fns.push(b=>b.set(db.collection('meta').doc('flags'),{seeded:true}));
+  commitBatches(fns).catch(()=>{});
+}
+function initCloud(done){
+  try{firebase.initializeApp(FIREBASE_CONFIG);db=firebase.firestore();}
+  catch(e){setStatus('⚠ Config error — using local',false);loadLocal();done();return;}
+  setStatus('☁ Connecting…',false);
+  db.collection('meta').doc('flags').get().then(d=>{if(!d.exists||!d.data().seeded)seedCloud();}).catch(()=>{});
+  db.collection('meta').doc('people').onSnapshot(d=>{if(d.exists&&Array.isArray(d.data().list)){PEOPLE=d.data().list.slice();rebuildDropdowns();refresh();}});
+  db.collection('leave').onSnapshot(snap=>{
+    ENTRIES=snap.docs.map(x=>({id:x.id,...x.data()}));
+    setStatus('☁ Live — synced with team',true);
+    if(!cloudReady){cloudReady=true;done();}
+    rebuildDropdowns();refresh();
+  },()=>setStatus('⚠ Connection issue',false));
+}
+function showToast(msg){const t=document.getElementById('toast');if(!t)return;t.textContent=msg;t.classList.add('show');clearTimeout(showToast._t);showToast._t=setTimeout(()=>t.classList.remove('show'),1800);}
+
+let curYear, curMonth, fPerson="", fType="";
+function filtered(){
+  return ENTRIES.filter(e=>(!fPerson||e.person===fPerson)&&(!fType||e.type===fType));
+}
+
+function renderCalendar(){
+  const v=document.getElementById('view-calendar');
+  const first=new Date(curYear,curMonth,1);
+  const startDow=first.getDay();
+  const days=new Date(curYear,curMonth+1,0).getDate();
+  const byDay={};
+  filtered().forEach(e=>{
+    const[y,m,d]=e.date.split('-').map(Number);
+    if(y===curYear&&m-1===curMonth){(byDay[d]=byDay[d]||[]).push(e);}
+  });
+  const todayStr=ymd(new Date());
+  const _yrs=[...new Set(ENTRIES.map(e=>+e.date.split('-')[0])),curYear];
+  const _ymin=Math.min(..._yrs),_ymax=Math.max(..._yrs);
+  let _yearOpts='';for(let y=_ymin-1;y<=Math.max(_ymax,new Date().getFullYear())+6;y++)_yearOpts+=`<option${y===curYear?' selected':''}>${y}</option>`;
+  let cells='';
+  for(let i=0;i<startDow;i++)cells+='<div class="cell empty"></div>';
+  for(let d=1;d<=days;d++){
+    const dow=new Date(curYear,curMonth,d).getDay();
+    const wk=(dow===0||dow===6)?' weekend':'';
+    const ds=`${curYear}-${String(curMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const today=ds===todayStr?' today':'';
+    const items=byDay[d]||[];
+    let pills='';
+    items.slice(0,3).forEach(e=>{
+      const extra=e.type!=='timeoff'?' · '+entryLabel(e):'';
+      pills+=`<span class="pill" style="background:${typeColor(e.type)}" title="${e.person} — ${entryLabel(e)}">${e.person}${extra}</span>`;
+    });
+    if(items.length>3)pills+=`<div class="more">+${items.length-3} more</div>`;
+    cells+=`<div class="cell${wk}${today}" data-day="${d}">${pills}<span class="dn" style="position:absolute;top:6px;right:8px">${d}</span></div>`;
+  }
+  v.innerHTML=`<div class="card">
+    <div class="calhead">
+      <button class="navbtn" id="prevM">‹</button>
+      <div style="display:flex;gap:8px;align-items:center">
+        <select id="calMonth" class="ctl">${MONTHS.map((m,i)=>`<option value="${i}"${i===curMonth?' selected':''}>${m}</option>`).join('')}</select>
+        <select id="calYear" class="ctl">${_yearOpts}</select>
+      </div>
+      <button class="navbtn" id="nextM">›</button>
+    </div>
+    <div class="grid">${["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map(g=>`<div class="gh">${g}</div>`).join('')}</div>
+    <div class="grid" style="margin-top:6px">${cells}</div>
+  </div>`;
+  document.getElementById('prevM').onclick=()=>{curMonth--;if(curMonth<0){curMonth=11;curYear--;}renderCalendar();};
+  document.getElementById('nextM').onclick=()=>{curMonth++;if(curMonth>11){curMonth=0;curYear++;}renderCalendar();};
+  document.getElementById('calMonth').onchange=e=>{curMonth=+e.target.value;renderCalendar();};
+  document.getElementById('calYear').onchange=e=>{curYear=+e.target.value;renderCalendar();};
+  v.querySelectorAll('.cell[data-day]').forEach(c=>c.onclick=()=>openDay(+c.dataset.day));
+}
+
+function renderPeople(){
+  const v=document.getElementById('view-people');
+  const counts={};ENTRIES.forEach(e=>counts[e.person]=(counts[e.person]||0)+1);
+  v.innerHTML=`<div class="card">
+    <div class="toolbar">
+      <input id="newPerson" class="ctl" placeholder="New person's name" style="min-width:220px">
+      <button class="btn" id="addPerson">+ Add person</button>
+    </div>
+    <table><thead><tr><th>Team member</th><th></th></tr></thead><tbody>
+    ${PEOPLE.map(p=>`<tr>
+      <td><span class="avatar" style="background:${personColor(p)}">${initials(p)}</span>${p}</td>
+      <td style="text-align:right"><button class="btn danger" data-rm="${encodeURIComponent(p)}">Remove</button></td>
+    </tr>`).join('')||`<tr><td colspan="2" class="empty-note">No people yet — add one above.</td></tr>`}
+    </tbody></table>
+    <div class="hint">Removing a person also deletes their leave entries. Added people appear in the calendar and dropdowns.</div>
+  </div>`;
+  const inp=document.getElementById('newPerson');
+  const doAdd=()=>{
+    const name=inp.value.trim();
+    if(!name)return;
+    if(PEOPLE.some(p=>p.toLowerCase()===name.toLowerCase())){alert(name+' is already on the list.');return;}
+    dbSetPeople([...PEOPLE,name].sort());showToast('✓ '+name+' added');
+  };
+  document.getElementById('addPerson').onclick=doAdd;
+  inp.onkeydown=e=>{if(e.key==='Enter')doAdd();};
+  v.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{
+    const p=decodeURIComponent(b.dataset.rm);
+    const n=(counts[p]||0);
+    if(!confirm(`Remove ${p}${n?` and their ${n} leave ent`+(n===1?'ry':'ries'):''}?`))return;
+    const theirIds=ENTRIES.filter(e=>e.person===p).map(e=>e.id);
+    if(fPerson===p)fPerson="";
+    dbDeleteEntries(theirIds);
+    dbSetPeople(PEOPLE.filter(x=>x!==p));
+    showToast('🗑️ '+p+' removed');
+  });
+}
+
+let statsYear=null,statsMonth=null;
+let statsExpanded=new Set();
+function renderStats(){
+  const v=document.getElementById('view-stats');
+  const years=[...new Set(ENTRIES.map(e=>+e.date.split('-')[0]))].sort();
+  const nowY=new Date().getFullYear();
+  if(statsYear===null||!years.includes(statsYear))
+    statsYear=years.includes(nowY)?nowY:(years[years.length-1]||nowY);
+  let data=filtered().filter(e=>+e.date.split('-')[0]===statsYear);
+  if(statsMonth)data=data.filter(e=>+e.date.split('-')[1]===statsMonth);
+  const period=(statsMonth?MONTHS[statsMonth-1].slice(0,3)+' ':'')+statsYear;
+  const byPerson={};data.forEach(e=>{(byPerson[e.person]=byPerson[e.person]||[]).push(e);});
+  const isHol=t=>t!=='timeoff'&&t!=='custom';
+  const totalTO=data.filter(e=>e.type==='timeoff').length;
+  const totalHol=data.filter(e=>isHol(e.type)).length;
+  const per={};PEOPLE.forEach(p=>per[p]={timeoff:0,holiday:0,custom:0});
+  data.forEach(e=>{if(per[e.person]){if(e.type==='timeoff')per[e.person].timeoff++;else if(e.type==='custom')per[e.person].custom++;else per[e.person].holiday++;}});
+  const maxTO=Math.max(1,...PEOPLE.map(p=>per[p].timeoff));
+  v.innerHTML=`
+   <div class="card"><div class="statgrid">
+     <div class="stat"><div class="lbl">Time-off days (${period})</div><div class="big">${totalTO}</div></div>
+     <div class="stat"><div class="lbl">Holiday days (${period})</div><div class="big">${totalHol}</div></div>
+     <div class="stat"><div class="lbl">Total entries</div><div class="big">${data.length}</div></div>
+     <div class="stat"><div class="lbl">People</div><div class="big">${PEOPLE.length}</div></div>
+   </div></div>
+   <div class="card">
+     <div class="toolbar" style="margin-bottom:12px">
+       <h2 style="margin:0;font-size:16px;flex:1">Time off by person</h2>
+       <label class="hint" style="margin:0">Month</label>
+       <select id="statsMonthSel" class="ctl"><option value="">Whole year</option>${MONTHS.map((m,i)=>`<option value="${i+1}"${statsMonth===i+1?' selected':''}>${m}</option>`).join('')}</select>
+       <label class="hint" style="margin:0">Year</label>
+       <select id="statsYearSel" class="ctl">${years.map(y=>`<option value="${y}"${y===statsYear?' selected':''}>${y}</option>`).join('')}</select>
+     </div>
+     ${PEOPLE.map(p=>{const op=statsExpanded.has(p);const rows=(byPerson[p]||[]).slice().sort((a,b)=>a.date<b.date?-1:1);return `<div style="margin-bottom:10px">
+       <div class="minirow prow" data-p="${encodeURIComponent(p)}" style="cursor:pointer"><span><span class="avatar" style="background:${personColor(p)}">${initials(p)}</span>${p} <span style="color:var(--muted);font-size:10px">${op?'▲':'▼'}</span></span><span><b>${per[p].timeoff}</b> time off · ${per[p].holiday} holiday${per[p].custom?' · '+per[p].custom+' other':''}</span></div>
+       <div class="bar"><span style="width:${per[p].timeoff/maxTO*100}%;background:${personColor(p)}"></span></div>
+       ${op?`<div style="margin-top:8px;padding:6px 12px;background:var(--soft);border-radius:10px">${rows.length?rows.map(e=>`<div class="minirow" style="border-bottom:1px dashed var(--line);padding:5px 0"><span>${new Date(e.date+'T00:00:00').toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric',year:'numeric'})}</span><span class="tag" style="background:${typeColor(e.type)}">${entryLabel(e)}</span></div>`).join(''):'<div class="hint" style="margin:0">No entries in this period.</div>'}</div>`:''}
+       </div>`;}).join('')||'<div class="empty-note">No people yet.</div>'}
+   </div>`;
+  const sel=document.getElementById('statsYearSel');
+  if(sel)sel.onchange=e=>{statsYear=+e.target.value;renderStats();};
+  const selM=document.getElementById('statsMonthSel');
+  if(selM)selM.onchange=e=>{statsMonth=e.target.value?+e.target.value:null;renderStats();};
+  v.querySelectorAll('.prow').forEach(el=>el.onclick=()=>{const p=decodeURIComponent(el.dataset.p);statsExpanded.has(p)?statsExpanded.delete(p):statsExpanded.add(p);renderStats();});
+}
+
+let editingId=null;
+function updateNoteVis(){const f=document.getElementById('mNoteField');if(f)f.style.display=document.getElementById('mType').value==='custom'?'':'none';}
+function fillPersonSelect(sel,val){sel.innerHTML=PEOPLE.map(p=>`<option${p===val?' selected':''}>${p}</option>`).join('');}
+function openEdit(id){
+  editingId=id;
+  const e=ENTRIES.find(x=>x.id===id);
+  document.getElementById('modalTitle').textContent='Edit leave';
+  fillPersonSelect(document.getElementById('mPerson'),e.person);
+  document.getElementById('mStart').value=e.date;
+  document.getElementById('mEnd').value=e.date;
+  document.getElementById('mType').value=e.type;
+  document.getElementById('mNote').value=e.type==='custom'?(e.label||''):'';
+  updateNoteVis();
+  document.getElementById('mDelete').style.visibility='visible';
+  document.getElementById('editOverlay').classList.add('show');
+}
+function openAdd(date){
+  if(!PEOPLE.length){alert('Add a team member first (People tab).');return;}
+  editingId=null;
+  document.getElementById('modalTitle').textContent='Add leave';
+  fillPersonSelect(document.getElementById('mPerson'),fPerson||PEOPLE[0]);
+  const d=date||ymd(new Date());
+  document.getElementById('mStart').value=d;
+  document.getElementById('mEnd').value=d;
+  document.getElementById('mType').value='timeoff';
+  document.getElementById('mNote').value='';
+  updateNoteVis();
+  document.getElementById('mDelete').style.visibility='hidden';
+  document.getElementById('editOverlay').classList.add('show');
+}
+function closeEdit(){document.getElementById('editOverlay').classList.remove('show');}
+function saveEdit(){
+  const person=document.getElementById('mPerson').value;
+  const start=document.getElementById('mStart').value;
+  const end=document.getElementById('mEnd').value||start;
+  const type=document.getElementById('mType').value;
+  if(!start){alert('Pick a start date');return;}
+  const label=type==='custom'?(document.getElementById('mNote').value.trim()||'Other'):'';
+  const wasEdit=!!editingId;const delId=editingId;editingId=null;
+  let s=new Date(start+'T00:00:00'),en=new Date(end+'T00:00:00');
+  if(en<s)en=s;
+  const list=[];
+  for(let dt=new Date(s);dt<=en;dt.setDate(dt.getDate()+1)){list.push({person,date:ymd(dt),type,label});}
+  if(delId)dbDeleteEntries([delId]);
+  dbAddEntries(list);
+  closeEdit();
+  showToast(wasEdit?'✓ Entry updated':`✓ Saved · ${list.length} day${list.length===1?'':'s'} added`);
+}
+function deleteEntry(){
+  const person=document.getElementById('mPerson').value;
+  const start=document.getElementById('mStart').value;
+  const end=document.getElementById('mEnd').value||start;
+  if(!start){if(editingId){dbDeleteEntries([editingId]);closeEdit();showToast('🗑️ Entry deleted');}return;}
+  const lo=start<end?start:end, hi=start<end?end:start;
+  const victims=ENTRIES.filter(x=>x.person===person&&x.date>=lo&&x.date<=hi);
+  let ids=[];
+  if(!victims.length){
+    if(editingId){if(!confirm('Delete this entry?'))return;ids=[editingId];}
+    else{alert('No leave for '+person+' in that range.');return;}
+  }else{
+    const msg=lo===hi?`Delete ${victims.length===1?'this entry':victims.length+' entries'} for ${person} on ${lo}?`
+      :`Delete ${victims.length} entr${victims.length===1?'y':'ies'} for ${person} from ${lo} to ${hi}?`;
+    if(!confirm(msg))return;
+    ids=victims.map(x=>x.id);
+  }
+  dbDeleteEntries(ids);closeEdit();showToast(`🗑️ ${ids.length} entr${ids.length===1?'y':'ies'} deleted`);
+}
+
+let dayCtx=null;
+function openDay(d){
+  dayCtx={year:curYear,month:curMonth,day:d};
+  const ds=`${curYear}-${String(curMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+  const items=ENTRIES.filter(e=>e.date===ds&&(!fPerson||e.person===fPerson)&&(!fType||e.type===fType));
+  document.getElementById('dayTitle').textContent=new Date(ds+'T00:00:00').toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+  const dl=document.getElementById('dayList');
+  dl.innerHTML=items.length?items.map(e=>`<div class="dayitem">
+     <span><span class="avatar" style="background:${personColor(e.person)}">${initials(e.person)}</span>${e.person} — <span class="tag" style="background:${typeColor(e.type)}">${entryLabel(e)}</span></span>
+     <button class="btn ghost" data-e="${e.id}">Edit</button></div>`).join(''):`<div class="empty-note">No leave logged on this day.</div>`;
+  dl.querySelectorAll('[data-e]').forEach(b=>b.onclick=()=>{closeDay();openEdit(b.dataset.e);});
+  document.getElementById('dayOverlay').classList.add('show');
+}
+function closeDay(){document.getElementById('dayOverlay').classList.remove('show');}
+
+function toRows(){
+  return ENTRIES.slice().sort((a,b)=>a.date<b.date?-1:1)
+    .map(e=>({Date:e.date,Person:e.person,Type:entryLabel(e)}));
+}
+function exportXlsx(){
+  const ws=XLSX.utils.json_to_sheet(toRows());
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Leave");
+  XLSX.writeFile(wb,"Val_Nav_Leave_Plan.xlsx");
+}
+function exportCsv(){
+  const rows=toRows();
+  const csv=["Date,Person,Type"].concat(rows.map(r=>`${r.Date},"${r.Person}","${r.Type}"`)).join("\n");
+  const blob=new Blob([csv],{type:'text/csv'});const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);a.download="Val_Nav_Leave_Plan.csv";a.click();
+}
+function importFile(file){
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    try{
+      const wb=XLSX.read(ev.target.result,{type:'binary'});
+      const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+      const imported=rows.map((r,i)=>{
+        const t=(r.Type||'').toString().toLowerCase();
+        let type='timeoff',label='';
+        if(t.includes('canada'))type='canada';
+        else if(t.includes('india'))type='indian';
+        else if(t.includes('malaysia'))type='malaysia';
+        else if(t.includes('colombia'))type='colombian';
+        else if(t&&t!=='time off'&&t!=='timeoff'){type='custom';label=(r.Type||'').toString();}
+        return {id:'i'+Date.now()+i,person:(r.Person||'').toString().trim(),date:normDate(r.Date),type,label};
+      }).filter(r=>r.person&&r.date);
+      if(!imported.length){alert('No valid rows found. Expected columns: Date, Person, Type, Label.');return;}
+      if(confirm(`Import ${imported.length} rows? This replaces ALL current data for everyone.`)){
+        const people=[...new Set(imported.map(r=>r.person))].sort();
+        dbReplaceAll(imported,people);
+      }
+    }catch(e){alert('Could not read file: '+e.message);}
+  };
+  reader.readAsBinaryString(file);
+}
+function normDate(v){
+  if(v==null)return'';
+  if(typeof v==='number'){const d=XLSX.SSF.parse_date_code(v);return `${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`;}
+  const s=v.toString().trim();const d=new Date(s);
+  return isNaN(d)?s:ymd(d);
+}
+
+function rebuildDropdowns(){
+  const pf=document.getElementById('personFilter');
+  const cur=fPerson;
+  pf.innerHTML='<option value="">All people</option>'+PEOPLE.map(p=>`<option${p===cur?' selected':''}>${p}</option>`).join('');
+  if(!PEOPLE.includes(cur))fPerson="";
+}
+
+let activeTab='calendar';
+function refresh(){
+  if(activeTab==='calendar')renderCalendar();
+  if(activeTab==='people')renderPeople();
+  if(activeTab==='stats')renderStats();
+}
+function setTab(t){
+  activeTab=t;
+  document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===t));
+  ['calendar','people','stats'].forEach(x=>document.getElementById('view-'+x).style.display=x===t?'':'none');
+  refresh();
+}
+
+(function(){
+  const now=new Date();
+  curYear=now.getFullYear();curMonth=now.getMonth();
+  if(CLOUD){initCloud(()=>{});}else{loadLocal();setStatus('💾 Local (this browser only)',false);}
+  rebuildDropdowns();
+  document.getElementById('personFilter').onchange=e=>{fPerson=e.target.value;refresh();};
+  document.getElementById('typeFilter').onchange=e=>{fType=e.target.value;refresh();};
+  document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>setTab(b.dataset.tab));
+  document.getElementById('addBtn').onclick=()=>openAdd();
+  document.getElementById('mCancel').onclick=closeEdit;
+  document.getElementById('mSave').onclick=saveEdit;
+  document.getElementById('mType').onchange=updateNoteVis;
+  document.getElementById('mDelete').onclick=deleteEntry;
+  document.getElementById('editOverlay').onclick=e=>{if(e.target.id==='editOverlay')closeEdit();};
+  document.getElementById('dayClose').onclick=closeDay;
+  document.getElementById('dayAdd').onclick=()=>{const ds=`${dayCtx.year}-${String(dayCtx.month+1).padStart(2,'0')}-${String(dayCtx.day).padStart(2,'0')}`;closeDay();openAdd(ds);};
+  document.getElementById('dayOverlay').onclick=e=>{if(e.target.id==='dayOverlay')closeDay();};
+  document.getElementById('exportXlsx').onclick=exportXlsx;
+  document.getElementById('exportCsv').onclick=exportCsv;
+  document.getElementById('importBtn').onclick=()=>document.getElementById('importFile').click();
+  document.getElementById('importFile').onchange=e=>{if(e.target.files[0])importFile(e.target.files[0]);e.target.value='';};
+  document.getElementById('resetBtn').onclick=()=>{if(confirm('Reset to the original spreadsheet data? This replaces the shared data for EVERYONE.')){dbReplaceAll(seed(),DEFAULT_PEOPLE.slice());showToast('↺ Reset to original');}};
+  document.getElementById('saveBtn').onclick=()=>{if(!CLOUD){saveLocal();savePeopleLocal();}showToast(CLOUD?'☁ Synced with team':'✓ All changes saved');};
+  setTab('calendar');
+})();
+</script>
+</body>
+</html>
